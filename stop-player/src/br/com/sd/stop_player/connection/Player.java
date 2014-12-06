@@ -1,35 +1,52 @@
 package br.com.sd.stop_player.connection;
 
-import java.io.FileInputStream;
+import java.io.BufferedReader;
 import java.io.IOException;
-import java.util.Properties;
-
-import br.com.sd.stop_player.util.ConfigurationProperties;
-
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
+import java.net.UnknownHostException;
 
 public class Player {
+	
+	private Socket socket;
+	private String name;
 
-	private static Properties configuration;
-
-	public static void main(String[] args) {
-		if(args.length != 1) {
-			System.err.println("ERRO: Arquivo de configuracao não informado.");
-			System.out.println("\tModo de uso: java Player X:\\caminho\\arquivo\\de\\configuration.properties");
-			System.exit(1);
-		}
-		String configurationFilePath = args[0];
-		configuration = new Properties();
+	public Player(String name) {
+		this.name = name;
+	}
+	
+	public void connect(String hostname, int port) {
 		try {
-			configuration.load(new FileInputStream(configurationFilePath));
+			this.socket = new Socket(hostname, port);
+			System.out.println(String.format("Conectado ao servidor %s:%s", hostname, port));
+			PrintWriter output = new PrintWriter(socket.getOutputStream(), true);
+			BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+			
+			output.println(String.format("Hello, my name is %s", name));
+			
+			String fromServer;
+			while((fromServer = input.readLine()) != null && !fromServer.equals("FIMDEJOGO")) {
+				System.out.println(String.format("SERVER: %s", fromServer));
+			}
+			
+		} catch (UnknownHostException e) {
+			System.err.println(String.format("Servidor não encontrado: %s", e.getMessage()));
+			System.exit(1);
 		} catch (IOException e) {
-			System.err.println("ERRO: Erro ao carregar configuração.");
+			System.err.println(String.format("Erro de I/O ao abrir socket com o servidor: %s", e.getMessage()));
 			System.exit(1);
 		}
-		
-		String serverHostname = configuration.getProperty(ConfigurationProperties.SERVER_HOSTNAME);
-		int serverPort = Integer.parseInt(configuration.getProperty(ConfigurationProperties.SERVER_PORT));
-		
-		Client client = new Client(serverHostname, serverPort);
-		client.connect();
+	}
+	
+	public void disconnect() {
+		if(socket != null) {
+			try {
+				socket.close();
+			} catch (IOException e) {
+				System.err.println(String.format("Erro ao fechar socket: %s", e.getMessage()));
+				System.exit(1);
+			}
+		}
 	}
 }

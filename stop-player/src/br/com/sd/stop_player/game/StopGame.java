@@ -7,11 +7,9 @@ public class StopGame {
 
 	private int roundsAmount;
 	private int roundTime;
-	
-	Map<String, List<Integer>> results;
+	private Map<String, List<Integer>> results;
 	
 	public StopGame(String gameParameters) {
 		
 	}
-
 }

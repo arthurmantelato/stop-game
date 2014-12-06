@@ -1,81 +1,64 @@
 package br.com.sd.stop_binder.connection;
 
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.net.ServerSocket;
-import java.net.Socket;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.Properties;
 
 import br.com.sd.stop_binder.game.StopGameConfiguration;
+import br.com.sd.stop_binder.util.ConfigurationProperties;
 
 public class Server {
-	
-	private StopGameConfiguration gameConfiguration;
-	private ServerSocket serverSocket;
-	private int connectionTimeout;
 
-	public Server(int port, int connectionTimeout) {
+	private static Properties configuration;
+	
+	public static void main(String[] args) {
+		if(args.length != 1) {
+			System.err.println("ERRO: Arquivo de configuracao não informado.");
+			System.out.println("\tModo de uso: java Binder X:\\caminho\\arquivo\\de\\configuration.properties");
+			System.exit(1);
+		}
+		String configurationFilePath = args[0];
+		configuration = new Properties();
 		try {
-			this.connectionTimeout = connectionTimeout;
-			this.serverSocket = new ServerSocket(port);
+			configuration.load(new FileInputStream(configurationFilePath));
 		} catch (IOException e) {
-			System.out.println("ERRO: Erro ao abrir socket do servidor.");
-			e.printStackTrace();
-			System.exit(3);
+			System.err.println(String.format("Erro ao carregar configuração: %s", e.getMessage()));
+			System.exit(1);
+		}
+		startServer();
+	}
+	
+	private static void startServer() {
+		int port = Integer.parseInt(configuration.getProperty(ConfigurationProperties.SERVER_PORT));
+		int connectionTimeout = Integer.parseInt(configuration.getProperty(ConfigurationProperties.SERVER_CONNECTION_TIMEOUT));
+		
+		ServerSocket socket = null;
+		try {
+			socket = new ServerSocket(port);
+		} catch (IOException e) {
+			System.err.println(String.format("Erro ao abrir socket[porta=%d]: %s", port, e.getMessage()));
+			System.exit(1);
+		}
+		
+		int roundsAmount = Integer.parseInt(configuration.getProperty(ConfigurationProperties.GAME_ROUNDS_AMOUNT));
+		int roundTimeInSeconds = Integer.parseInt(configuration.getProperty(ConfigurationProperties.GAME_ROUND_TIME));
+		int minimumPlayersAmount = Integer.parseInt(configuration.getProperty(ConfigurationProperties.GAME_MINIMUM_PLAYERS_AMOUNT));
+		StopGameConfiguration gameConfiguration = new StopGameConfiguration(roundsAmount, roundTimeInSeconds);
+		
+		int playersReady = 0;
+		while (playersReady < minimumPlayersAmount) { 
+			System.out.println("Servidor iniciado. Aguardando jogadores...");
+			try {
+				Binder binder = new Binder(socket.accept());
+				System.out.println("Jogador identificado. Repassando regras...");
+				binder.loadGameParameters(gameConfiguration);
+				binder.start();
+				playersReady++;
+			} catch (IOException e) {
+				System.err.println(String.format("Erro ao iniciar socket[%d]: %s", port, e.getMessage()));
+				System.exit(1);
+			}
 		}
 	}
-
-	public void loadGameParameters(StopGameConfiguration gameConfiguration) {
-		this.gameConfiguration = gameConfiguration;
-	}
-	
-	public void start() {
-		try {
-			Socket clientSocket = serverSocket.accept();
-			PrintWriter output = new PrintWriter(clientSocket.getOutputStream(), true);
-			output.println(String.format("%s;%s", gameConfiguration.getRoundsAmount(), gameConfiguration.getRoundTime()));
-			/*ExecutorService executor = Executors.newSingleThreadExecutor();
-			Future<String> handler = executor.submit(new Task(clientSocket, gameConfiguration));
-			handler.get(connectionTimeout, TimeUnit.SECONDS);	*/
-			
-		} catch (IOException e) {
-			System.out.println("ERRO: Erro ao iniciar servidor/binder.");
-			e.printStackTrace();
-			System.exit(4);
-		} /*catch (TimeoutException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (ExecutionException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}*/
-	}
-}
-
-class Task implements Callable<String> {
-
-	private Socket socket;
-	private StopGameConfiguration gameConfiguration;
-	
-	public Task(Socket socket, StopGameConfiguration gameConfiguration) {
-		this.socket = socket;
-		this.gameConfiguration = gameConfiguration;
-	}
-
-	@Override
-	public String call() throws Exception {
-		PrintWriter output = new PrintWriter(socket.getOutputStream(), true);
-		output.println(String.format("%s;%s", gameConfiguration.getRoundsAmount(), gameConfiguration.getRoundTime()));
-		return "Pronto";
-	}
-	
 }

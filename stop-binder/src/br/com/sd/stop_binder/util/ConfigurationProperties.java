@@ -2,7 +2,6 @@ package br.com.sd.stop_binder.util;
 
 public class ConfigurationProperties {
 
-	public static final String SERVER_HOSTNAME = "server.hostname";
 	public static final String SERVER_PORT = "server.port";
 	public static final String SERVER_CONNECTION_TIMEOUT = "server.connection.timeout";
 	

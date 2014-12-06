@@ -1,50 +1,35 @@
 package br.com.sd.stop_player.connection;
 
-import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.net.Socket;
-import java.net.UnknownHostException;
+import java.util.Properties;
 
-import br.com.sd.stop_player.game.StopGame;
+import br.com.sd.stop_player.util.ConfigurationProperties;
+
 
 public class Client {
-	
-	private String serverHostname;
-	private int serverPort;
 
-	public Client(String serverHostname, int serverPort) {
-		this.serverHostname = serverHostname;
-		this.serverPort = serverPort;
-	}
-	
-	public void connect() {
-		try {
-			Socket socket = new Socket(serverHostname, serverPort);
-			PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-			
-			BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-			String fromServer;
-			while((fromServer = in.readLine()) !=  null) {
-				System.out.println(String.format("SERVER: %s", fromServer));
-			}
-			String gameParameters = loadGameParameters(fromServer);
-			StopGame stopGame = new StopGame(gameParameters);
-			
-		} catch (UnknownHostException e) {
-			System.err.println("Servidor não encontrado.");
-			e.printStackTrace();
-			System.exit(1);
-		} catch (IOException e) {
-			System.err.println("Erro de I/O ao abrir socket com o servidor.");
-			e.printStackTrace();
+	private static Properties configuration;
+
+	public static void main(String[] args) {
+		if(args.length != 1) {
+			System.err.println("ERRO: Arquivo de configuracao não informado.");
+			System.out.println("\tModo de uso: java Player X:\\caminho\\arquivo\\de\\configuration.properties");
 			System.exit(1);
 		}
-	}
-
-	private String loadGameParameters(String fromServer) {
-		// TODO Auto-generated method stub
-		return null;
+		String configurationFilePath = args[0];
+		configuration = new Properties();
+		try {
+			configuration.load(new FileInputStream(configurationFilePath));
+		} catch (IOException e) {
+			System.err.println(String.format("Erro ao carregar configuração: %s", e.getMessage()));
+			System.exit(1);
+		}
+		
+		String serverHostname = configuration.getProperty(ConfigurationProperties.SERVER_HOSTNAME);
+		int serverPort = Integer.parseInt(configuration.getProperty(ConfigurationProperties.SERVER_PORT));
+		
+		Player player = new Player("Arthur");
+		player.connect(serverHostname, serverPort);
 	}
 }
